@@ -58,8 +58,9 @@ class Context(object):
         'use_internal_make_jobserver',
         'use_env_cache',
         'catkin_make_args',
-        'blacklist',
         'whitelist',
+        'blacklist',
+        'ninja',
         'authors',
         'maintainers',
         'licenses',
@@ -304,8 +305,9 @@ class Context(object):
         use_env_cache=False,
         catkin_make_args=None,
         space_suffix=None,
-        buildlist=None,
-        skiplist=None,
+        whitelist=None,
+        blacklist=None,
+        ninja=False,
         authors=None,
         maintainers=None,
         licenses=None,
@@ -356,6 +358,8 @@ class Context(object):
         :param skiplist: a list of packages to ignore by default
         :type skiplist: list
         :raises: ValueError if workspace or source space does not exist
+        :param ninja: Use ninja instead of make
+        :type ninja: bool
         :type authors: list
         :param authors: a list of default authors
         :type maintainers: list
@@ -431,6 +435,7 @@ class Context(object):
         self.cached_cmake_prefix_path = None
         self.env_cmake_prefix_path = None
         self.cmake_prefix_path = None
+        self.ninja = ninja
 
         self.extends = extends
 
