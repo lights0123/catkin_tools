@@ -17,6 +17,7 @@ import os
 from hashlib import md5
 
 from catkin_tools.argument_parsing import handle_make_arguments
+from catkin_tools.execution import job_server
 from catkin_tools.common import mkdir_p
 from catkin_tools.execution.io import CatkinTestResultsIOBufferProtocol
 from catkin_tools.execution.jobs import Job
@@ -426,7 +427,7 @@ def create_catkin_build_job(context, package, package_path, dependencies, force_
     else:
         build_file_path = os.path.join(build_space, 'Makefile')
 
-    if not os.path.isfile(build_file_path) or force_cmake or context.ninja:
+    if not os.path.isfile(build_file_path) or force_cmake:
 
         require_command('cmake', CMAKE_EXEC)
 
@@ -461,7 +462,7 @@ def create_catkin_build_job(context, package, package_path, dependencies, force_
                 logger_factory=CMakeIOBufferProtocol.factory_factory(pkg_dir),
                 occupy_job=True
             ))
-    else:
+    elif not context.ninja:
         # Check buildsystem command
         stages.append(CommandStage(
             'check',
@@ -476,6 +477,9 @@ def create_catkin_build_job(context, package, package_path, dependencies, force_
         context.make_args +
         context.catkin_make_args)
     ninja_args = context.jobs_args
+    ninja_env = {}
+    if job_server.gnu_make_enabled():
+        ninja_env['MAKEFLAGS'] = job_server.gnu_make_args()[0]
 
     # Pre-clean command
     if pre_clean:
@@ -485,14 +489,15 @@ def create_catkin_build_job(context, package, package_path, dependencies, force_
                 'preclean',
                 [NINJA_EXEC, 'clean'] + ninja_args,
                 cwd=build_space,
+                env_overrides=ninja_env,
             ))
-    else:
-        # TODO: Remove target args from `make_args`
-        stages.append(CommandStage(
-            'preclean',
-            [MAKE_EXEC, 'clean'] + make_args,
-            cwd=build_space,
-        ))
+        else:
+            # TODO: Remove target args from `make_args`
+            stages.append(CommandStage(
+                'preclean',
+                [MAKE_EXEC, 'clean'] + make_args,
+                cwd=build_space,
+            ))
 
     if context.ninja:
         require_command('ninja', NINJA_EXEC)
@@ -501,19 +506,20 @@ def create_catkin_build_job(context, package, package_path, dependencies, force_
             'ninja',
             [NINJA_EXEC] + ninja_args,
             cwd=build_space,
-            logger_factory=CMakeMakeIOBufferProtocol.factory
+            logger_factory=CMakeMakeIOBufferProtocol.factory,
+            env_overrides=ninja_env
         ))
 
     else:
         require_command('make', MAKE_EXEC)
 
-    # Make command
-    stages.append(CommandStage(
-        'make',
-        [MAKE_EXEC] + make_args,
-        cwd=build_space,
-        logger_factory=CMakeMakeIOBufferProtocol.factory
-    ))
+        # Make command
+        stages.append(CommandStage(
+            'make',
+            [MAKE_EXEC] + make_args,
+            cwd=build_space,
+            logger_factory=CMakeMakeIOBufferProtocol.factory
+        ))
 
     # Symlink command if using a linked develspace
     if context.link_devel:
@@ -538,7 +544,8 @@ def create_catkin_build_job(context, package, package_path, dependencies, force_
                 [NINJA_EXEC, 'install'],
                 cwd=build_space,
                 logger_factory=CMakeMakeIOBufferProtocol.factory,
-                locked_resource=None if context.isolate_install else 'installspace'
+                locked_resource=None if context.isolate_install else 'installspace',
+                env_overrides=ninja_env,
             ))
         else:
             stages.append(CommandStage(
