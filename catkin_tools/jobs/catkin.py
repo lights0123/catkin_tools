@@ -29,6 +29,7 @@ from .cmake import get_python_install_dir
 from .commands.cmake import CMAKE_EXEC
 from .commands.cmake import CMakeIOBufferProtocol
 from .commands.cmake import CMakeMakeIOBufferProtocol
+from .commands.cmake import CMakeNinjaIOBufferProtocol
 from .commands.cmake import CMakeMakeRunTestsIOBufferProtocol
 from .commands.cmake import get_installed_files
 from .commands.make import MAKE_EXEC
@@ -506,7 +507,7 @@ def create_catkin_build_job(context, package, package_path, dependencies, force_
             'ninja',
             [NINJA_EXEC] + ninja_args,
             cwd=build_space,
-            logger_factory=CMakeMakeIOBufferProtocol.factory,
+            logger_factory=CMakeNinjaIOBufferProtocol.factory,
             env_overrides=ninja_env
         ))
 
@@ -543,7 +544,7 @@ def create_catkin_build_job(context, package, package_path, dependencies, force_
                 'install',
                 [NINJA_EXEC, 'install'],
                 cwd=build_space,
-                logger_factory=CMakeMakeIOBufferProtocol.factory,
+                logger_factory=CMakeNinjaIOBufferProtocol.factory,
                 locked_resource=None if context.isolate_install else 'installspace',
                 env_overrides=ninja_env,
             ))

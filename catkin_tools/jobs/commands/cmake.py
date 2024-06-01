@@ -176,6 +176,34 @@ class CMakeMakeIOBufferProtocol(IOBufferProtocol):
                 percent=str(progress_matches.groups()[0])))
 
 
+class CMakeNinjaIOBufferProtocol(IOBufferProtocol):
+
+    """An IOBufferProtocol which parses Ninja's progress prefixes and emits corresponding STAGE_PROGRESS events."""
+
+    def __init__(self, label, job_id, stage_label, event_queue, log_path, *args, **kwargs):
+        super(CMakeNinjaIOBufferProtocol, self).__init__(
+            label, job_id, stage_label, event_queue, log_path, *args, **kwargs)
+
+    def on_stdout_received(self, data):
+        if b'FAILED: ' in data:
+            super(CMakeNinjaIOBufferProtocol, self).on_stderr_received(data)
+        else:
+            super(CMakeNinjaIOBufferProtocol, self).on_stdout_received(data)
+        self.send_progress(data)
+
+    def send_progress(self, data):
+        """Parse CMake Make completion progress"""
+        progress_matches = re.match(r'\s*\[(\d+)/(\d+)\]', self._decode(data))
+        if progress_matches is not None:
+            groups = progress_matches.groups()
+            percent = int(float(groups[0]) / float(groups[1]) * 100)
+            self.event_queue.put(ExecutionEvent(
+                'STAGE_PROGRESS',
+                job_id=self.job_id,
+                stage_label=self.stage_label,
+                percent=str(percent)))
+
+
 class CMakeMakeRunTestsIOBufferProtocol(CMakeMakeIOBufferProtocol):
     """An IOBufferProtocol which parses the output of `make run_tests`."""
     def __init__(self, label, job_id, stage_label, event_queue, log_path, verbose, *args, **kwargs):
