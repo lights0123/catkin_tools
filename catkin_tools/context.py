@@ -435,7 +435,7 @@ class Context(object):
         self.cached_cmake_prefix_path = None
         self.env_cmake_prefix_path = None
         self.cmake_prefix_path = None
-        self.ninja = ninja
+        self.ninja = True
 
         self.extends = extends
 
